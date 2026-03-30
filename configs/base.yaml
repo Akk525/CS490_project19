@@ -1,0 +1,54 @@
+project:
+  name: improv_procedural_adaptation
+  seed: 42
+paths:
+  raw_youcook2: data/raw/youcook2
+  raw_wikihow: data/raw/wikihow
+  interim: data/interim
+  processed: data/processed
+  benchmark: data/processed/benchmark.jsonl
+  retrieval_library: data/retrieval_library/library.jsonl
+  retrieval_index: data/retrieval_library/index.npz
+  splits_dir: data/splits
+  outputs: outputs
+dataset:
+  min_steps: 3
+  max_steps: 30
+disruptions:
+  enabled_types: [missing_tool, missing_ingredient, incorrect_object, step_failure, environmental_constraint]
+retrieval:
+  enabled: true
+  strategy: hybrid
+  k: 3
+  candidate_pool: 20
+  use_reranker: true
+prompting:
+  type: retrieval_augmented
+  max_tokens: 512
+  temperature: 0.2
+models:
+  generation_model: mistral-large:123b
+  embedding_model: qwen3-embedding:8b
+  reranker_model: hf.co/jinaai/jina-reranker-v3-GGUF:BF16
+backends:
+  generation:
+    mode: openai_compatible
+    timeout_seconds: 180
+    openai_compatible: {base_url_env: SCHOOL_OPENAI_BASE_URL, api_key_env: SCHOOL_OPENAI_API_KEY, endpoint_path: /chat/completions}
+    http: {base_url_env: SCHOOL_HTTP_BASE_URL, endpoint: /generate, auth_header_env: SCHOOL_HTTP_AUTH_HEADER, auth_token_env: SCHOOL_HTTP_AUTH_TOKEN}
+    cli: {bin_env: SCHOOL_CLI_BIN, timeout_seconds_env: SCHOOL_CLI_TIMEOUT_SECONDS}
+  embedding:
+    mode: openai_compatible
+    timeout_seconds: 120
+    openai_compatible: {base_url_env: SCHOOL_OPENAI_BASE_URL, api_key_env: SCHOOL_OPENAI_API_KEY, endpoint_path: /embeddings}
+    http: {base_url_env: SCHOOL_HTTP_BASE_URL, endpoint: /embed, auth_header_env: SCHOOL_HTTP_AUTH_HEADER, auth_token_env: SCHOOL_HTTP_AUTH_TOKEN}
+    cli: {bin_env: SCHOOL_CLI_BIN, timeout_seconds_env: SCHOOL_CLI_TIMEOUT_SECONDS}
+  reranker:
+    mode: openai_compatible
+    timeout_seconds: 120
+    openai_compatible: {base_url_env: SCHOOL_OPENAI_BASE_URL, api_key_env: SCHOOL_OPENAI_API_KEY, endpoint_path: /rerank}
+    http: {base_url_env: SCHOOL_HTTP_BASE_URL, endpoint: /rerank, auth_header_env: SCHOOL_HTTP_AUTH_HEADER, auth_token_env: SCHOOL_HTTP_AUTH_TOKEN}
+    cli: {bin_env: SCHOOL_CLI_BIN, timeout_seconds_env: SCHOOL_CLI_TIMEOUT_SECONDS}
+evaluation:
+  enable_llm_judge: false
+  llm_judge_model: gemma3:27b-it-q8_0

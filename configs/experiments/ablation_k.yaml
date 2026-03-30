@@ -1,0 +1,5 @@
+extends: [configs/base.yaml, configs/local.yaml]
+experiment: {name: ablation_k, split: test}
+ablations:
+  retrieval_k: [1,3,5]
+  use_reranker: [false,true]

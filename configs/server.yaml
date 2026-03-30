@@ -1,0 +1,8 @@
+extends: configs/base.yaml
+backends:
+  generation: {mode: openai_compatible}
+  embedding: {mode: openai_compatible}
+  reranker: {mode: openai_compatible}
+retrieval:
+  enabled: true
+  use_reranker: true

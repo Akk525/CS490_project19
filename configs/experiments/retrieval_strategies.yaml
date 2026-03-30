@@ -1,0 +1,4 @@
+extends: [configs/base.yaml, configs/local.yaml]
+experiment: {name: retrieval_strategy, split: test}
+ablations:
+  retrieval_strategies: [disruption_only, full_context, hybrid]

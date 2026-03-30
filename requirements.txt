@@ -1,0 +1,9 @@
+pyyaml
+requests
+numpy
+pandas
+scikit-learn
+pydantic
+tqdm
+python-dotenv
+openai

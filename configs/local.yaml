@@ -1,0 +1,11 @@
+extends: configs/base.yaml
+
+project:
+  seed: 42
+  youcook2_cap: 300
+  wikihow_cap: 200
+
+backends:
+  generation: {mode: openai_compatible}
+  embedding: {mode: openai_compatible}
+  reranker: {mode: openai_compatible}

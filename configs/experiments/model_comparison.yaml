@@ -1,0 +1,4 @@
+extends: [configs/base.yaml, configs/local.yaml]
+experiment: {name: model_comparison, split: test}
+ablations:
+  models: [mistral-large:123b, llama3.3:70b-instruct-q8_0]

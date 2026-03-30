@@ -1,0 +1,8 @@
+extends: [configs/base.yaml, configs/local.yaml]
+experiment:
+  name: main
+  split: test
+models:
+  generation_model: mistral-large:123b
+prompting:
+  type: retrieval_augmented
