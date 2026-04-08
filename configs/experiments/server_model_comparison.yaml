@@ -1,11 +1,11 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: model_comparison
   split: test
-models:
-  generation_model: mistral-large:123b
 prompting:
   type: retrieval_augmented
 backends:
   generation:
     timeout_seconds: 600
+ablations:
+  models: [mistral-large:123b, llama3.3:70b-instruct-q8_0]

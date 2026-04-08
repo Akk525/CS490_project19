@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from src.dataset.normalizer import normalize_steps
+from src.dataset.visual_context import index_frame_paths
 from src.utils.io import read_json
 
 
@@ -78,6 +79,8 @@ def load_youcook2(raw_dir: Path, min_steps: int = 3) -> List[Dict]:
     ann_path = _discover_annotation_file(raw_dir)
     foodtype_path = raw_dir / 'annotations' / 'label_foodtype.csv'
     foodtype_map = load_foodtype_map(foodtype_path)
+    project_root = raw_dir.parents[2] if len(raw_dir.parents) >= 3 else raw_dir
+    frame_index = index_frame_paths(raw_dir / 'frames', project_root)
 
     payload = read_json(ann_path)
     database = payload.get('database') if isinstance(payload, dict) else None
@@ -105,6 +108,7 @@ def load_youcook2(raw_dir: Path, min_steps: int = 3) -> List[Dict]:
                 'source_dataset': 'youcook2',
                 'source_item_id': video_id,
                 'domain': 'cooking',
+                'image_path': frame_index.get(video_id),
                 'goal': goal,
                 'steps': steps,
                 'metadata': {

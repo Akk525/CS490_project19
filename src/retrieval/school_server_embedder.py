@@ -7,6 +7,7 @@ import requests
 
 from src.models.response_normalizer import normalize_embeddings
 from src.retrieval.embedder_base import EmbedderBase
+from src.utils.http_retry import post_with_retries
 
 
 class SchoolServerEmbedder(EmbedderBase):
@@ -30,8 +31,12 @@ class SchoolServerEmbedder(EmbedderBase):
                 raise ValueError(f'Missing env: {cfg["base_url_env"]}')
             url = base_url.rstrip('/') + '/embeddings'
             payload = {'model': self.model_name, 'input': texts}
-            resp = requests.post(url, headers=self._headers(cfg), json=payload, timeout=self.backend_cfg.get('timeout_seconds', 120))
-            resp.raise_for_status()
+            resp = post_with_retries(
+                url,
+                headers=self._headers(cfg),
+                json=payload,
+                timeout=self.backend_cfg.get('timeout_seconds', 120),
+            )
             return normalize_embeddings(resp.json())
 
         if self.mode == 'http':
@@ -44,8 +49,12 @@ class SchoolServerEmbedder(EmbedderBase):
             if auth_header and auth_token:
                 headers[auth_header] = auth_token
             payload = {'model': self.model_name, 'texts': texts}
-            resp = requests.post(url, headers=headers, json=payload, timeout=self.backend_cfg.get('timeout_seconds', 120))
-            resp.raise_for_status()
+            resp = post_with_retries(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.backend_cfg.get('timeout_seconds', 120),
+            )
             return normalize_embeddings(resp.json())
 
         if self.mode == 'cli':

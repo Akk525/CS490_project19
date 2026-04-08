@@ -8,6 +8,7 @@ class ProceduralExample(BaseModel):
     source_dataset: str
     source_item_id: str
     domain: str
+    image_path: Optional[str] = None
     goal: str
     full_procedure: List[str]
     current_state: str
@@ -27,6 +28,14 @@ class ProceduralExample(BaseModel):
         if not value:
             raise ValueError('goal cannot be empty')
         return value
+
+    @field_validator('image_path')
+    @classmethod
+    def validate_image_path(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
 
     @field_validator('full_procedure')
     @classmethod

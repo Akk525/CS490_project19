@@ -1,6 +1,6 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: retrieval_strategy
   split: test
 models:
   generation_model: mistral-large:123b
@@ -9,3 +9,5 @@ prompting:
 backends:
   generation:
     timeout_seconds: 600
+ablations:
+  retrieval_strategies: [disruption_only, full_context, hybrid]

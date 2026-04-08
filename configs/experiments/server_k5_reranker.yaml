@@ -1,11 +1,16 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: ablation_k_k5_rerank1
   split: test
 models:
   generation_model: mistral-large:123b
 prompting:
   type: retrieval_augmented
+retrieval:
+  k: 5
+  use_reranker: true
+  candidate_pool: 10
+  rerank_fallback_to_retrieval: true
 backends:
   generation:
     timeout_seconds: 600

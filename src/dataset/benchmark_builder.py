@@ -167,6 +167,7 @@ def build_benchmark(rows: Iterable[Dict], disruption_types: List[str]) -> List[P
                 source_dataset=row["source_dataset"],
                 source_item_id=row["source_item_id"],
                 domain=row.get("domain", "general"),
+                image_path=row.get("image_path"),
                 goal=goal,
                 full_procedure=steps,
                 current_state=_normalize_text(d["current_state"]),

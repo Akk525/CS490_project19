@@ -1,11 +1,14 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: no_reranker
   split: test
 models:
   generation_model: mistral-large:123b
 prompting:
   type: retrieval_augmented
+retrieval:
+  enabled: true
+  use_reranker: false
 backends:
   generation:
     timeout_seconds: 600

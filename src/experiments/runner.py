@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 import yaml
@@ -24,7 +24,7 @@ def _run_id(cfg: Dict) -> str:
     return f"{exp_name}_{utc_now_iso().replace(':', '-')}"
 
 
-def run_experiment(cfg: Dict, project_dir: Path) -> str:
+def run_experiment(cfg: Dict, project_dir: Path, resume_run_id: Optional[str] = None) -> str:
     validate_model_names(
         cfg['models']['generation_model'],
         cfg['models']['embedding_model'],
@@ -37,18 +37,19 @@ def run_experiment(cfg: Dict, project_dir: Path) -> str:
     examples_raw = read_jsonl(split_path if split_path.exists() else benchmark_path)
     examples = [ProceduralExample(**x) for x in examples_raw]
 
-    run_id = _run_id(cfg)
+    run_id = resume_run_id or _run_id(cfg)
     run_dir = project_dir / 'outputs' / 'generations' / run_id
     eval_dir = project_dir / 'outputs' / 'evaluations' / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     eval_dir.mkdir(parents=True, exist_ok=True)
 
-    with (run_dir / 'config_snapshot.yaml').open('w', encoding='utf-8') as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+    if not resume_run_id:
+        with (run_dir / 'config_snapshot.yaml').open('w', encoding='utf-8') as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
 
-    manifest = build_manifest(run_id, cfg, project_dir)
-    save_manifest(manifest, run_dir)
-    register_run(manifest, project_dir / 'outputs' / 'manifests' / 'run_registry.jsonl')
+        manifest = build_manifest(run_id, cfg, project_dir)
+        save_manifest(manifest, run_dir)
+        register_run(manifest, project_dir / 'outputs' / 'manifests' / 'run_registry.jsonl')
 
     generation_model = SchoolServerGeneration(cfg['backends']['generation'], cfg['models']['generation_model'])
     llm_judge_model = None
@@ -70,20 +71,38 @@ def run_experiment(cfg: Dict, project_dir: Path) -> str:
             }
         )
 
+    existing_generations = {}
+    generations_path = run_dir / 'generations.jsonl'
+    if generations_path.exists():
+        existing_generations = {row['example_id']: row for row in read_jsonl(generations_path)}
+
+    completed_eval_ids = set()
+    evaluation_path = eval_dir / 'evaluation_results.jsonl'
+    if evaluation_path.exists():
+        completed_eval_ids = {row['example_id'] for row in read_jsonl(evaluation_path)}
+
     for ex in tqdm(examples, desc=f'Running {run_id}'):
-        gen_rec, prompt_rec, retrieval_trace = run_one_example(
-            example=ex,
-            model=generation_model,
-            prompt_type=cfg['prompting']['type'],
-            retrieval_cfg=cfg['retrieval'],
-            retrieval_runtime=retrieval_runtime,
-            generation_params=cfg.get('prompting', {}),
-        )
-        gen_rec.update({'run_id': run_id, 'timestamp': utc_now_iso()})
-        append_jsonl(run_dir / 'generations.jsonl', gen_rec)
-        append_jsonl(run_dir / 'prompts.jsonl', {'run_id': run_id, **prompt_rec})
-        if retrieval_trace:
-            append_jsonl(run_dir / 'retrieval_traces.jsonl', {'run_id': run_id, 'example_id': ex.example_id, **retrieval_trace})
+        if ex.example_id in completed_eval_ids:
+            continue
+
+        if ex.example_id in existing_generations:
+            gen_rec = existing_generations[ex.example_id]
+            prompt_rec = None
+            retrieval_trace = None
+        else:
+            gen_rec, prompt_rec, retrieval_trace = run_one_example(
+                example=ex,
+                model=generation_model,
+                prompt_type=cfg['prompting']['type'],
+                retrieval_cfg=cfg['retrieval'],
+                retrieval_runtime=retrieval_runtime,
+                generation_params=cfg.get('prompting', {}),
+            )
+            gen_rec.update({'run_id': run_id, 'timestamp': utc_now_iso()})
+            append_jsonl(run_dir / 'generations.jsonl', gen_rec)
+            append_jsonl(run_dir / 'prompts.jsonl', {'run_id': run_id, **prompt_rec})
+            if retrieval_trace:
+                append_jsonl(run_dir / 'retrieval_traces.jsonl', {'run_id': run_id, 'example_id': ex.example_id, **retrieval_trace})
 
         eval_rec = evaluate_rule_based(ex, gen_rec['raw_model_output'], cfg['prompting']['type'], cfg['models']['generation_model'])
         if llm_judge_model:

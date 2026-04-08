@@ -7,6 +7,7 @@ import requests
 
 from src.models.response_normalizer import normalize_rerank_results
 from src.retrieval.reranker_base import RerankerBase
+from src.utils.http_retry import post_with_retries
 
 
 class SchoolServerReranker(RerankerBase):
@@ -26,8 +27,12 @@ class SchoolServerReranker(RerankerBase):
             if auth_header and auth_token:
                 headers[auth_header] = auth_token
             payload = {'model': self.model_name, 'query': query, 'documents': documents}
-            resp = requests.post(url, headers=headers, json=payload, timeout=self.backend_cfg.get('timeout_seconds', 120))
-            resp.raise_for_status()
+            resp = post_with_retries(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.backend_cfg.get('timeout_seconds', 120),
+            )
             scored = normalize_rerank_results(resp.json())
             return [(int(x['index']), float(x['score'])) for x in scored]
 
@@ -40,8 +45,12 @@ class SchoolServerReranker(RerankerBase):
             if key:
                 headers['Authorization'] = f'Bearer {key}'
             payload = {'model': self.model_name, 'query': query, 'documents': documents}
-            resp = requests.post(url, headers=headers, json=payload, timeout=self.backend_cfg.get('timeout_seconds', 120))
-            resp.raise_for_status()
+            resp = post_with_retries(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.backend_cfg.get('timeout_seconds', 120),
+            )
             scored = normalize_rerank_results(resp.json())
             return [(int(x['index']), float(x['score'])) for x in scored]
 

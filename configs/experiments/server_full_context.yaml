@@ -1,11 +1,15 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: retrieval_strategy_full_context
   split: test
 models:
   generation_model: mistral-large:123b
 prompting:
   type: retrieval_augmented
+retrieval:
+  strategy: full_context
+  candidate_pool: 10
+  rerank_fallback_to_retrieval: true
 backends:
   generation:
     timeout_seconds: 600

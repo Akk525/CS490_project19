@@ -1,11 +1,11 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: vlm_main
   split: test
 models:
-  generation_model: mistral-large:123b
+  generation_model: gemma3:27b-it-q8_0
 prompting:
-  type: retrieval_augmented
+  type: multimodal_retrieval_augmented
 backends:
   generation:
     timeout_seconds: 600

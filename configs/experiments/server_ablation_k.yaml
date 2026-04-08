@@ -1,6 +1,6 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: ablation_k
   split: test
 models:
   generation_model: mistral-large:123b
@@ -9,3 +9,6 @@ prompting:
 backends:
   generation:
     timeout_seconds: 600
+ablations:
+  retrieval_k: [1, 3, 5]
+  use_reranker: [false, true]

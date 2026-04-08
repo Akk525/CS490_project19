@@ -1,9 +1,9 @@
 extends: [configs/base.yaml, configs/server.yaml]
 experiment:
-  name: main
+  name: llama_main
   split: test
 models:
-  generation_model: mistral-large:123b
+  generation_model: llama3.3:70b-instruct-q8_0
 prompting:
   type: retrieval_augmented
 backends:

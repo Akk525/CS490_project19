@@ -13,11 +13,12 @@ from src.utils.config import load_config
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', required=True)
+    parser.add_argument('--resume-run-id')
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     root = ROOT
-    run_id = run_experiment(cfg, root)
+    run_id = run_experiment(cfg, root, resume_run_id=args.resume_run_id)
     print(f'Completed run: {run_id}')
 
 

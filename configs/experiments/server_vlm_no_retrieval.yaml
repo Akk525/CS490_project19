@@ -1,0 +1,15 @@
+extends: [configs/base.yaml, configs/server.yaml]
+experiment:
+  name: vlm_no_retrieval
+  split: test
+models:
+  generation_model: gemma3:27b-it-q8_0
+prompting:
+  type: multimodal_structured
+  max_tokens: 384
+retrieval:
+  enabled: false
+  use_reranker: false
+backends:
+  generation:
+    timeout_seconds: 600

@@ -30,6 +30,11 @@ improv_procedural_adaptation/
         youcook2_annotations_trainval.json               # accepted alternate name
         youcookii_annotations_test_segments_only.json   # optional
         label_foodtype.csv                                # recipe_type id → goal label (recommended)
+      frames/                                            # optional for VLM runs
+        <video_id>.jpg                                   # supported
+        <video_id>.png                                   # supported
+        <video_id>/
+          frame_0001.jpg                                 # supported; first discovered frame is used
       metadata/
         youcookii_videos_trainval.json                  # optional
     wikihow/
@@ -56,6 +61,47 @@ python scripts/ingest_wikihow.py --config configs/local.yaml
 python scripts/build_benchmark.py --config configs/experiments/main.yaml
 python scripts/build_retrieval_index.py --config configs/experiments/main.yaml
 ```
+
+## VLM Mode
+
+The repo now supports **multimodal generation** for Purdue-hosted Gemma 3 models by attaching an image of the current procedural state to each YouCook2 example.
+
+### Preparing frame paths
+
+If you already extracted representative YouCook2 frames under `data/raw/youcook2/frames/`, the loader will attach `image_path` automatically during fresh ingestion.
+
+If you already built the benchmark/splits and want to retrofit image paths in-place:
+
+```bash
+python scripts/attach_youcook2_frames.py --frames-dir data/raw/youcook2/frames
+```
+
+This updates:
+- `data/interim/youcook2_examples.jsonl`
+- `data/processed/benchmark.jsonl`
+- `data/splits/train.jsonl`
+- `data/splits/dev.jsonl`
+- `data/splits/test.jsonl`
+
+### Purdue-compatible VLM configs
+
+Two server-ready configs are included:
+
+- `configs/experiments/server_vlm_main.yaml`
+  - `gemma3:27b-it-q8_0`
+  - multimodal retrieval-augmented prompting
+- `configs/experiments/server_vlm_no_retrieval.yaml`
+  - `gemma3:27b-it-q8_0`
+  - multimodal structured prompting without retrieval
+
+### Running VLM experiments
+
+```bash
+python scripts/run_experiments.py --config configs/experiments/server_vlm_main.yaml
+python scripts/run_experiments.py --config configs/experiments/server_vlm_no_retrieval.yaml
+```
+
+These runs require `image_path` to be present on the benchmark examples. If an example is missing an image, the run will stop with an explicit error instead of silently falling back to text-only behavior.
 
 ## Configure School Server Access
 1. Copy `.env.example` to `.env`.
