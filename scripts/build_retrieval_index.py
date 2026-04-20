@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.retrieval.index_builder import build_index
-from src.retrieval.school_server_embedder import SchoolServerEmbedder
+from src.retrieval.factory import build_embedder
 from src.utils.config import load_config
 from src.utils.io import read_jsonl
 
@@ -27,7 +27,7 @@ def main():
     else:
         rows = read_jsonl(split_dir / 'train.jsonl')
 
-    embedder = SchoolServerEmbedder(cfg['backends']['embedding'], cfg['models']['embedding_model'])
+    embedder = build_embedder(cfg['backends']['embedding'], cfg['models']['embedding_model'])
     build_index(
         rows=rows,
         embedder=embedder,

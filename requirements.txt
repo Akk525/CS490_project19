@@ -7,3 +7,7 @@ pydantic
 tqdm
 python-dotenv
 openai
+vllm
+yt-dlp
+Pillow
+sentence-transformers

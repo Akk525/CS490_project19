@@ -135,8 +135,21 @@ def _clean_target_adaptation(target: str, original_step: str) -> str:
     return target
 
 
-def build_benchmark(rows: Iterable[Dict], disruption_types: List[str]) -> List[ProceduralExample]:
+def _image_path_for_disruption(row: Dict, disrupted_step_index: int) -> str | None:
+    metadata = row.get("metadata", {}) or {}
+    step_image_paths = metadata.get("step_image_paths", {}) or {}
+    step_image_path = step_image_paths.get(str(disrupted_step_index))
+    if step_image_path:
+        return step_image_path
+    step_image_path = step_image_paths.get(disrupted_step_index)
+    if step_image_path:
+        return step_image_path
+    return row.get("image_path")
+
+
+def build_benchmark(rows: Iterable[Dict], disruption_types: List[str], disruption_cfg: Dict | None = None) -> List[ProceduralExample]:
     benchmark: List[ProceduralExample] = []
+    disruption_cfg = disruption_cfg or {}
 
     for row in rows:
         if not _is_relevant_row(row):
@@ -149,7 +162,13 @@ def build_benchmark(rows: Iterable[Dict], disruption_types: List[str]) -> List[P
             continue
 
         base_id = stable_hash(f"{row['source_dataset']}::{row['source_item_id']}::{goal}")
-        disrupted = generate_disruptions_for_example({**row, "goal": goal, "steps": steps}, disruption_types)
+        generator_row = {
+            **row,
+            "goal": goal,
+            "steps": steps,
+            "missing_ingredient_modalities": disruption_cfg.get("missing_ingredient_modalities", ["text"]),
+        }
+        disrupted = generate_disruptions_for_example(generator_row, disruption_types)
 
         for idx, d in enumerate(disrupted):
             if not _disruption_fits_example(row, d):
@@ -167,7 +186,7 @@ def build_benchmark(rows: Iterable[Dict], disruption_types: List[str]) -> List[P
                 source_dataset=row["source_dataset"],
                 source_item_id=row["source_item_id"],
                 domain=row.get("domain", "general"),
-                image_path=row.get("image_path"),
+                image_path=_image_path_for_disruption(row, d["disrupted_step_index"]),
                 goal=goal,
                 full_procedure=steps,
                 current_state=_normalize_text(d["current_state"]),

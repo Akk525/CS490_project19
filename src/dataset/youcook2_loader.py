@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from src.dataset.normalizer import normalize_steps
-from src.dataset.visual_context import index_frame_paths
+from src.dataset.visual_context import index_frame_paths, index_step_frame_paths
 from src.utils.io import read_json
 
 
@@ -36,6 +36,39 @@ def _extract_steps(annotations: Dict) -> List[str]:
             if sentence:
                 steps.append(sentence)
     return normalize_steps(steps)
+
+
+def _extract_step_times(annotations: Dict) -> List[Dict[str, float | None]]:
+    segments = annotations.get('annotations') or annotations.get('segments') or []
+    out: List[Dict[str, float | None]] = []
+    if not isinstance(segments, list):
+        return out
+
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        start, end = _segment_bounds(seg)
+        out.append({'start': start, 'end': end})
+    return out
+
+
+def _segment_bounds(seg: Dict) -> tuple[float | None, float | None]:
+    if isinstance(seg.get('segment'), list) and len(seg['segment']) >= 2:
+        return _to_float(seg['segment'][0]), _to_float(seg['segment'][1])
+    if isinstance(seg.get('timestamp'), list) and len(seg['timestamp']) >= 2:
+        return _to_float(seg['timestamp'][0]), _to_float(seg['timestamp'][1])
+    start = seg.get('start') or seg.get('start_time') or seg.get('begin')
+    end = seg.get('end') or seg.get('end_time') or seg.get('finish')
+    return _to_float(start), _to_float(end)
+
+
+def _to_float(value) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _discover_annotation_file(raw_dir: Path) -> Path:
@@ -81,6 +114,7 @@ def load_youcook2(raw_dir: Path, min_steps: int = 3) -> List[Dict]:
     foodtype_map = load_foodtype_map(foodtype_path)
     project_root = raw_dir.parents[2] if len(raw_dir.parents) >= 3 else raw_dir
     frame_index = index_frame_paths(raw_dir / 'frames', project_root)
+    step_frame_index = index_step_frame_paths(raw_dir / 'frames', project_root)
 
     payload = read_json(ann_path)
     database = payload.get('database') if isinstance(payload, dict) else None
@@ -92,6 +126,7 @@ def load_youcook2(raw_dir: Path, min_steps: int = 3) -> List[Dict]:
         steps = _extract_steps(item)
         if len(steps) < min_steps:
             continue
+        step_times = _extract_step_times(item)
 
         recipe_type = str(item.get('recipe_type', '')).strip()
         goal = foodtype_map.get(recipe_type)
@@ -114,6 +149,8 @@ def load_youcook2(raw_dir: Path, min_steps: int = 3) -> List[Dict]:
                 'metadata': {
                     'subset': item.get('subset'),
                     'duration': item.get('duration'),
+                    'step_times': step_times,
+                    'step_image_paths': step_frame_index.get(video_id, {}),
                 },
             }
         )

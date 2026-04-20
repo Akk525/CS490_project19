@@ -1,0 +1,29 @@
+extends: [configs/base.yaml, configs/vllm.yaml]
+
+experiment:
+  name: gilbreth_qwen2vl_2b_smoke_with_judge
+  split: train
+  filters:
+    source_dataset: youcook2
+    disruption_type: missing_ingredient
+    disruption_modality: vision
+    require_image: true
+    max_examples: 5
+
+models:
+  generation_model: Qwen/Qwen2-VL-2B-Instruct
+  embedding_model: ""
+  reranker_model: ""
+
+prompting:
+  type: multimodal_structured
+  max_tokens: 256
+  temperature: 0.2
+
+retrieval:
+  enabled: false
+  use_reranker: false
+
+evaluation:
+  enable_llm_judge: true
+  llm_judge_model: Qwen/Qwen2-VL-2B-Instruct

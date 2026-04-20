@@ -13,8 +13,7 @@ from src.experiments.manifest import build_manifest
 from src.experiments.tracking import register_run, save_manifest
 from src.models.model_registry import validate_model_names
 from src.models.school_server_generation import SchoolServerGeneration
-from src.retrieval.school_server_embedder import SchoolServerEmbedder
-from src.retrieval.school_server_reranker import SchoolServerReranker
+from src.retrieval.factory import build_embedder, build_reranker
 from src.utils.io import append_jsonl, read_jsonl, write_json
 from src.utils.timestamps import utc_now_iso
 
@@ -22,6 +21,36 @@ from src.utils.timestamps import utc_now_iso
 def _run_id(cfg: Dict) -> str:
     exp_name = cfg.get('experiment', {}).get('name', 'run')
     return f"{exp_name}_{utc_now_iso().replace(':', '-')}"
+
+
+def _filter_examples(rows: list[Dict], cfg: Dict) -> list[Dict]:
+    filters = cfg.get('experiment', {}).get('filters', {}) or {}
+    if not filters:
+        return rows
+
+    out = rows
+    source_dataset = filters.get('source_dataset')
+    if source_dataset:
+        out = [r for r in out if r.get('source_dataset') == source_dataset]
+
+    disruption_type = filters.get('disruption_type')
+    if disruption_type:
+        out = [r for r in out if r.get('disruption_type') == disruption_type]
+
+    disruption_modality = filters.get('disruption_modality')
+    if disruption_modality:
+        out = [r for r in out if (r.get('metadata') or {}).get('disruption_modality') == disruption_modality]
+
+    if filters.get('require_image'):
+        out = [r for r in out if r.get('image_path')]
+
+    max_examples = filters.get('max_examples')
+    if max_examples:
+        out = out[: int(max_examples)]
+
+    if not out:
+        raise ValueError(f'Experiment filters removed all examples: {filters}')
+    return out
 
 
 def run_experiment(cfg: Dict, project_dir: Path, resume_run_id: Optional[str] = None) -> str:
@@ -35,6 +64,7 @@ def run_experiment(cfg: Dict, project_dir: Path, resume_run_id: Optional[str] = 
     split_name = cfg.get('experiment', {}).get('split', 'test')
     split_path = project_dir / cfg['paths']['splits_dir'] / f'{split_name}.jsonl'
     examples_raw = read_jsonl(split_path if split_path.exists() else benchmark_path)
+    examples_raw = _filter_examples(examples_raw, cfg)
     examples = [ProceduralExample(**x) for x in examples_raw]
 
     run_id = resume_run_id or _run_id(cfg)
@@ -60,8 +90,11 @@ def run_experiment(cfg: Dict, project_dir: Path, resume_run_id: Optional[str] = 
     if cfg['retrieval']['enabled']:
         library_rows = read_jsonl(project_dir / cfg['paths']['retrieval_library'])
         index = np.load(project_dir / cfg['paths']['retrieval_index'])
-        embedder = SchoolServerEmbedder(cfg['backends']['embedding'], cfg['models']['embedding_model'])
-        reranker = SchoolServerReranker(cfg['backends']['reranker'], cfg['models']['reranker_model']) if cfg['retrieval']['use_reranker'] else None
+        embedder = build_embedder(cfg['backends']['embedding'], cfg['models']['embedding_model'])
+        reranker = build_reranker(
+            cfg['backends']['reranker'],
+            cfg['models']['reranker_model'],
+        ) if cfg['retrieval']['use_reranker'] else None
         retrieval_runtime.update(
             {
                 'embedder': embedder,
@@ -112,6 +145,10 @@ def run_experiment(cfg: Dict, project_dir: Path, resume_run_id: Optional[str] = 
                     goal=ex.goal,
                     disruption=ex.disruption_description,
                     output_text=gen_rec['raw_model_output'],
+                    disrupted_step=ex.disrupted_step_text,
+                    target_adaptation=ex.target_adaptation,
+                    missing_ingredient=ex.metadata.get('missing_ingredient'),
+                    suggested_substitute=ex.metadata.get('suggested_substitute'),
                 )
             )
         else:

@@ -12,22 +12,22 @@ if str(ROOT) not in sys.path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Test school OpenAI-compatible proxy connectivity.')
+    parser = argparse.ArgumentParser(description='Test OpenAI-compatible proxy connectivity.')
     parser.add_argument('--model', default='gemma3:4b-it-q8_0')
     parser.add_argument('--prompt', default='Hello!')
     parser.add_argument('--max-tokens', type=int, default=50)
     args = parser.parse_args()
 
     load_dotenv()
-    base_url = os.getenv('SCHOOL_OPENAI_BASE_URL')
-    api_key = os.getenv('SCHOOL_OPENAI_API_KEY')
+    base_url = os.getenv('SCHOOL_OPENAI_BASE_URL') or os.getenv('VLLM_OPENAI_BASE_URL')
+    api_key = os.getenv('SCHOOL_OPENAI_API_KEY') or os.getenv('VLLM_OPENAI_API_KEY')
     if not base_url:
-        raise ValueError('Missing SCHOOL_OPENAI_BASE_URL in environment.')
+        raise ValueError('Missing SCHOOL_OPENAI_BASE_URL or VLLM_OPENAI_BASE_URL in environment.')
     if not api_key:
-        raise ValueError('Missing SCHOOL_OPENAI_API_KEY in environment.')
+        raise ValueError('Missing SCHOOL_OPENAI_API_KEY or VLLM_OPENAI_API_KEY in environment.')
 
     client = OpenAI(base_url=base_url, api_key=api_key)
-    print('Testing connection to school OpenAI-compatible proxy...')
+    print('Testing connection to OpenAI-compatible proxy...')
     response = client.chat.completions.create(
         model=args.model,
         messages=[{'role': 'user', 'content': args.prompt}],

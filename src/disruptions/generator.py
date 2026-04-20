@@ -69,12 +69,19 @@ def _safe_substitute_for(term: str | None) -> str:
         "lemon juice": "lime juice or a small amount of vinegar",
         "lemon": "lime",
         "lime juice": "lemon juice",
+        "vinegar": "lemon juice or lime juice",
+        "salt": "a small amount of soy sauce or omit it if needed",
+        "pepper": "paprika, chili flakes, or omit it",
+        "sugar": "honey, maple syrup, or omit it",
         "butter": "oil",
         "milk": "water or plant milk",
         "cream": "milk",
-        "oil": "melted butter",
+        "oil": "melted butter or ghee",
+        "olive oil": "another neutral cooking oil, melted butter, or ghee",
+        "water": "broth, stock, or another cooking liquid",
         "egg": "a flax egg or other binder",
         "eggs": "a flax egg or other binder",
+        "flour": "cornstarch, rice flour, or another binder",
         "breadcrumbs": "crushed crackers",
         "parmesan": "another hard cheese",
         "celery": "another crunchy vegetable such as apple or fennel",
@@ -83,8 +90,15 @@ def _safe_substitute_for(term: str | None) -> str:
         "nuts": "seeds or omit them",
         "bread": "another bread or toast base",
         "cheese": "another melty cheese",
+        "chicken": "tofu, mushrooms, chickpeas, paneer, or another protein",
+        "beef": "mushrooms, lentils, tofu, or another protein",
         "garlic": "garlic powder or omit it",
         "onion": "shallot or onion powder",
+        "sauce": "a similar sauce or a quick sauce made from available seasonings",
+        "hot sauce": "chili flakes, cayenne, or another spicy sauce",
+        "mustard": "a small amount of vinegar plus seasoning, or omit it",
+        "mayo": "yogurt, sour cream, or another creamy spread",
+        "mayonnaise": "yogurt, sour cream, or another creamy spread",
     }
     if not term:
         return "a similar available ingredient"
@@ -97,6 +111,10 @@ def _target_missing_ingredient(step: str) -> str:
     if ingredient:
         return f"If {ingredient} is unavailable, replace it with {sub} and continue."
     return "Use a similar available ingredient that preserves the purpose of the step and continue."
+
+
+def _missing_ingredient_for_step(step: str) -> str | None:
+    return _extract_first_matching_term(step, COOKING_INGREDIENT_WORDS)
 
 
 def _target_missing_tool(step: str) -> str:
@@ -147,6 +165,22 @@ def _rule_based_target(step: str, disruption_type: str) -> str:
     if disruption_type == "environmental_constraint":
         return _target_environmental_constraint(step)
     return ""
+
+
+def _missing_ingredient_modalities(row: Dict) -> List[str]:
+    configured = row.get("missing_ingredient_modalities")
+    if configured:
+        return [str(x).lower() for x in configured]
+    return ["text"]
+
+
+def _modality_description(base_description: str, modality: str) -> str:
+    if modality == "vision":
+        return (
+            "The provided image of the current state indicates that a key ingredient "
+            "needed for this step is missing. Adapt the recipe while preserving the intended dish."
+        )
+    return base_description
 
 
 def _allowed_disruption_types(step: str, domain: str) -> List[str]:
@@ -206,21 +240,30 @@ def generate_disruptions_for_example(row: Dict, disruption_types: List[str]) -> 
 
         for d_type in selected_types:
             target = _rule_based_target(step, d_type)
+            modalities = _missing_ingredient_modalities(row) if d_type == "missing_ingredient" else ["text"]
+            missing_ingredient = _missing_ingredient_for_step(step) if d_type == "missing_ingredient" else None
 
-            out.append(
-                {
-                    "current_state": " ".join(_normalize(s) for s in steps[:i]),
-                    "disrupted_step_index": i,
-                    "disrupted_step_text": step,
-                    "disruption_type": d_type,
-                    "disruption_description": templates[d_type],
-                    "target_adaptation": target,
-                    "target_provenance": "rule_based" if target else None,
-                    "metadata": {
-                        "domain_templates": "cooking" if templates is COOKING_TEMPLATES else "diy",
-                        "allowed_disruption_types": allowed,
-                    },
-                }
-            )
+            for modality in modalities:
+                if modality == "vision" and not row.get("image_path"):
+                    continue
+
+                out.append(
+                    {
+                        "current_state": " ".join(_normalize(s) for s in steps[:i]),
+                        "disrupted_step_index": i,
+                        "disrupted_step_text": step,
+                        "disruption_type": d_type,
+                        "disruption_description": _modality_description(templates[d_type], modality),
+                        "target_adaptation": target,
+                        "target_provenance": "rule_based" if target else None,
+                        "metadata": {
+                            "domain_templates": "cooking" if templates is COOKING_TEMPLATES else "diy",
+                            "allowed_disruption_types": allowed,
+                            "disruption_modality": modality,
+                            "missing_ingredient": missing_ingredient,
+                            "suggested_substitute": _safe_substitute_for(missing_ingredient) if missing_ingredient else None,
+                        },
+                    }
+                )
 
     return out

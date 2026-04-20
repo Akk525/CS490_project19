@@ -62,13 +62,30 @@ python scripts/build_benchmark.py --config configs/experiments/main.yaml
 python scripts/build_retrieval_index.py --config configs/experiments/main.yaml
 ```
 
-## VLM Mode
+## Local vLLM VLM Mode
 
-The repo now supports **multimodal generation** for Purdue-hosted Gemma 3 models by attaching an image of the current procedural state to each YouCook2 example.
+The repo supports **multimodal generation** by attaching an image of the current procedural state to each YouCook2 example. For runs without AI Forge access, serve a Hugging Face VLM locally with vLLM and use the OpenAI-compatible endpoint.
 
 ### Preparing frame paths
 
 If you already extracted representative YouCook2 frames under `data/raw/youcook2/frames/`, the loader will attach `image_path` automatically during fresh ingestion.
+
+To pull one frame per annotated YouCook2 step from YouTube, run this on Gilbreth after installing `yt-dlp` and making sure `ffmpeg` is available:
+
+```bash
+python scripts/download_youcook2_frames.py \
+  --raw-dir data/raw/youcook2 \
+  --output-dir data/raw/youcook2/frames
+```
+
+This writes files like:
+
+```text
+data/raw/youcook2/frames/<video_id>/step_0.jpg
+data/raw/youcook2/frames/<video_id>/step_1.jpg
+```
+
+Fresh ingestion records these paths in `metadata.step_image_paths`, and benchmark generation assigns each disruption the frame for its `disrupted_step_index`.
 
 If you already built the benchmark/splits and want to retrofit image paths in-place:
 
@@ -83,9 +100,100 @@ This updates:
 - `data/splits/dev.jsonl`
 - `data/splits/test.jsonl`
 
+### Serve a Hugging Face VLM with vLLM
+
+```bash
+pip install -r requirements.txt
+scripts/serve_vllm_vlm.sh Qwen/Qwen2.5-VL-7B-Instruct
+```
+
+In another shell:
+
+```bash
+export VLLM_OPENAI_BASE_URL=http://localhost:8000/v1
+export VLLM_OPENAI_API_KEY=EMPTY
+```
+
+### vLLM VLM configs
+
+The main local config is:
+
+- `configs/experiments/vllm_vlm_no_retrieval.yaml`
+  - `Qwen/Qwen2.5-VL-7B-Instruct`
+  - multimodal structured prompting
+  - retrieval and reranking disabled
+
+Run it with:
+
+```bash
+python scripts/run_experiments.py --config configs/experiments/vllm_vlm_no_retrieval.yaml
+```
+
+### Full Gilbreth run with local LLM judge
+
+Use this when the entire pipeline must run inside a Gilbreth Slurm allocation. The job starts a local vLLM OpenAI-compatible server, waits until it responds, then runs the experiment and grades each output with the configured LLM judge.
+
+One-time setup on Gilbreth from the repo root:
+
+```bash
+bash scripts/gilbreth_setup_env.sh
+```
+
+The default Gilbreth job is tuned for the visible `ai-forge` A10 allocation and uses `Qwen/Qwen2-VL-2B-Instruct` for a small smoke test over image-backed vision disruptions.
+
+Submit the default smoke run:
+
+```bash
+sbatch scripts/gilbreth_vllm_pipeline.sbatch
+```
+
+Useful overrides:
+
+```bash
+sbatch \
+  --export=ALL,VLLM_MODEL=Qwen/Qwen2-VL-2B-Instruct,CONFIG=configs/experiments/gilbreth_qwen2vl_2b_vision_with_judge.yaml \
+  scripts/gilbreth_vllm_pipeline.sbatch
+```
+
+To rebuild the missing-ingredient text/vision benchmark inside the same Gilbreth job before running:
+
+```bash
+sbatch \
+  --export=ALL,REBUILD_BENCHMARK=1,BENCHMARK_CONFIG=configs/experiments/vllm_benchmark_missing_ingredient_modalities.yaml \
+  scripts/gilbreth_vllm_pipeline.sbatch
+```
+
+The judge is controlled by:
+
+```yaml
+evaluation:
+  enable_llm_judge: true
+  llm_judge_model: Qwen/Qwen2-VL-2B-Instruct
+```
+
+in `configs/experiments/gilbreth_qwen2vl_2b_smoke_with_judge.yaml`. This uses the same local vLLM server, so it does not require paid APIs or AI Forge.
+
+### Missing-ingredient text and vision disruptions
+
+To rebuild a missing-ingredient-only benchmark with both text and vision-grounded variants:
+
+```bash
+python scripts/build_benchmark.py --config configs/experiments/vllm_benchmark_missing_ingredient_modalities.yaml
+```
+
+The generated examples store the variant in `metadata.disruption_modality` as either `text` or `vision`. Vision variants are only emitted for rows with `image_path`.
+
+To make the missing-ingredient disruption explicit inside the image, create derived visual-disruption images after building the benchmark:
+
+```bash
+python scripts/create_visual_disruption_images.py --overwrite
+```
+
+This writes images under `data/processed/visual_disruptions/`, updates vision rows to use those images, and preserves the original YouCook2 frame path in `metadata.original_image_path`.
+
 ### Purdue-compatible VLM configs
 
-Two server-ready configs are included:
+Legacy server-ready configs are still included:
 
 - `configs/experiments/server_vlm_main.yaml`
   - `gemma3:27b-it-q8_0`

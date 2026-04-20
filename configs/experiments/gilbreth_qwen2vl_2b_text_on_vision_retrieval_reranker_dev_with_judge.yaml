@@ -1,0 +1,5 @@
+extends: configs/experiments/gilbreth_qwen2vl_2b_text_on_vision_retrieval_reranker_with_judge.yaml
+
+experiment:
+  name: gilbreth_qwen2vl_2b_text_on_vision_retrieval_reranker_dev_with_judge
+  split: dev

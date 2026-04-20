@@ -1,0 +1,8 @@
+extends: configs/base.yaml
+
+experiment:
+  name: missing_ingredient_text_vision_benchmark
+
+disruptions:
+  enabled_types: [missing_ingredient]
+  missing_ingredient_modalities: [text, vision]

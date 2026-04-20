@@ -7,8 +7,28 @@ from src.retrieval.embedder_base import EmbedderBase
 from src.utils.io import write_jsonl
 
 
+def _index_text(row: Dict) -> str:
+    metadata = row.get('metadata') or {}
+    missing = metadata.get('missing_ingredient')
+    substitute = metadata.get('suggested_substitute')
+    lines = [
+        f"Goal: {row['goal']}",
+        f"Procedure: {' | '.join(row['full_procedure'])}",
+        f"Disrupted step: {row.get('disrupted_step_text', '')}",
+        f"Disruption type: {row.get('disruption_type', '')}",
+        f"Disruption: {row.get('disruption_description', '')}",
+    ]
+    if missing:
+        lines.append(f"Missing ingredient: {missing}")
+    if substitute:
+        lines.append(f"Known safe substitute: {substitute}")
+    if row.get('target_adaptation'):
+        lines.append(f"Adaptation: {row['target_adaptation']}")
+    return "\n".join(lines)
+
+
 def build_index(rows: List[Dict], embedder: EmbedderBase, out_index: Path, out_library: Path) -> None:
-    texts = [f"Goal: {r['goal']}\nProcedure: {' | '.join(r['full_procedure'])}\nDisruption: {r['disruption_description']}" for r in rows]
+    texts = [_index_text(r) for r in rows]
     batch_size = 8
     all_embeddings: List[List[float]] = []
 

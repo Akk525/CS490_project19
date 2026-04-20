@@ -67,7 +67,7 @@ def main():
         print(f"Using final capped subset of {len(rows)} rows for benchmark build")
 
     print("Building benchmark...")
-    benchmark = build_benchmark(rows, cfg["disruptions"]["enabled_types"])
+    benchmark = build_benchmark(rows, cfg["disruptions"]["enabled_types"], cfg.get("disruptions", {}))
     print(f"Built benchmark with {len(benchmark)} examples")
 
     benchmark_rows = [x.model_dump() for x in benchmark]

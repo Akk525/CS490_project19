@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.dataset.visual_context import index_frame_paths
+from src.dataset.visual_context import index_frame_paths, index_step_frame_paths
 from src.utils.io import read_jsonl, write_jsonl
 
 
@@ -29,6 +29,7 @@ def main() -> None:
 
     frames_dir = (ROOT / args.frames_dir).resolve() if not Path(args.frames_dir).is_absolute() else Path(args.frames_dir).resolve()
     frame_index = index_frame_paths(frames_dir, ROOT)
+    step_frame_index = index_step_frame_paths(frames_dir, ROOT)
     if not frame_index:
         raise RuntimeError(f'No frames found under {frames_dir}')
 
@@ -44,9 +45,20 @@ def main() -> None:
                 continue
             if row.get('image_path') and not args.overwrite:
                 continue
-            image_path = frame_index.get(str(row.get('source_item_id', '')).strip())
+            source_item_id = str(row.get('source_item_id', '')).strip()
+            image_path = None
+            if row.get('disrupted_step_index') is not None:
+                try:
+                    step_index = int(row['disrupted_step_index'])
+                except (TypeError, ValueError):
+                    step_index = None
+                if step_index is not None:
+                    image_path = step_frame_index.get(source_item_id, {}).get(step_index)
+            image_path = image_path or frame_index.get(source_item_id)
             if image_path:
                 row['image_path'] = image_path
+                if 'metadata' in row and isinstance(row['metadata'], dict) and source_item_id in step_frame_index:
+                    row['metadata']['step_image_paths'] = step_frame_index[source_item_id]
                 updated += 1
 
         write_jsonl(input_path, rows)

@@ -1,0 +1,37 @@
+extends: [configs/base.yaml, configs/vllm.yaml]
+
+experiment:
+  name: gilbreth_qwen2vl_2b_vision_retrieval_with_judge
+  split: test
+  filters:
+    source_dataset: youcook2
+    disruption_type: missing_ingredient
+    disruption_modality: vision
+    require_image: true
+
+models:
+  generation_model: Qwen/Qwen2-VL-2B-Instruct
+  embedding_model: BAAI/bge-small-en-v1.5
+  reranker_model: ""
+
+backends:
+  embedding:
+    mode: hf_local
+    batch_size: 32
+    device: auto
+
+prompting:
+  type: multimodal_retrieval_augmented
+  max_tokens: 512
+  temperature: 0.2
+
+retrieval:
+  enabled: true
+  strategy: hybrid
+  k: 3
+  candidate_pool: 20
+  use_reranker: false
+
+evaluation:
+  enable_llm_judge: true
+  llm_judge_model: Qwen/Qwen2-VL-2B-Instruct

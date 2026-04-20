@@ -1,0 +1,17 @@
+extends: [configs/base.yaml, configs/vllm.yaml]
+
+experiment:
+  name: vllm_vlm_no_retrieval
+  split: test
+
+models:
+  generation_model: Qwen/Qwen2.5-VL-7B-Instruct
+
+prompting:
+  type: multimodal_structured
+  max_tokens: 512
+  temperature: 0.2
+
+retrieval:
+  enabled: false
+  use_reranker: false
