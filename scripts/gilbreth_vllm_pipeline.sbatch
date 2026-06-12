@@ -16,6 +16,7 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-${SLURM_SUBMIT_DIR}}"
 CONFIG="${CONFIG:-configs/experiments/gilbreth_qwen2vl_2b_smoke_with_judge.yaml}"
+RESUME_RUN_ID="${RESUME_RUN_ID:-}"
 BENCHMARK_CONFIG="${BENCHMARK_CONFIG:-}"
 REBUILD_BENCHMARK="${REBUILD_BENCHMARK:-0}"
 CREATE_VISUAL_DISRUPTIONS="${CREATE_VISUAL_DISRUPTIONS:-1}"
@@ -110,4 +111,9 @@ if [[ "${CREATE_VISUAL_DISRUPTIONS}" == "1" ]]; then
   python scripts/create_visual_disruption_images.py
 fi
 
-python scripts/run_experiments.py --config "${CONFIG}"
+run_args=(--config "${CONFIG}")
+if [[ -n "${RESUME_RUN_ID}" ]]; then
+  run_args+=(--resume-run-id "${RESUME_RUN_ID}")
+fi
+
+python scripts/run_experiments.py "${run_args[@]}"

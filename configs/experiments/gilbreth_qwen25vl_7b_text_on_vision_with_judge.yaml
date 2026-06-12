@@ -1,0 +1,29 @@
+extends: [configs/base.yaml, configs/vllm.yaml]
+
+experiment:
+  name: gilbreth_qwen25vl_7b_text_on_vision_with_judge
+  split: test
+  filters:
+    source_dataset: youcook2
+    disruption_type: missing_ingredient
+    disruption_modality: vision
+    require_image: true
+
+models:
+  generation_model: Qwen/Qwen2.5-VL-7B-Instruct
+  embedding_model: ""
+  reranker_model: ""
+
+prompting:
+  type: structured
+  max_tokens: 256
+  temperature: 0.2
+
+retrieval:
+  enabled: false
+  use_reranker: false
+
+evaluation:
+  enable_llm_judge: true
+  llm_judge_model: Qwen/Qwen2.5-VL-7B-Instruct
+  llm_judge_max_tokens: 128

@@ -11,3 +11,6 @@ vllm
 yt-dlp
 Pillow
 sentence-transformers
+
+cd /scratch/gilbreth/akuniyil/improv_procedural_adaptation
+

@@ -149,6 +149,7 @@ def run_experiment(cfg: Dict, project_dir: Path, resume_run_id: Optional[str] = 
                     target_adaptation=ex.target_adaptation,
                     missing_ingredient=ex.metadata.get('missing_ingredient'),
                     suggested_substitute=ex.metadata.get('suggested_substitute'),
+                    max_tokens=int(cfg.get('evaluation', {}).get('llm_judge_max_tokens', 400)),
                 )
             )
         else:

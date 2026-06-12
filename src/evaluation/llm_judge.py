@@ -130,6 +130,7 @@ def evaluate_llm_judge(
     target_adaptation: Optional[str] = None,
     missing_ingredient: Optional[str] = None,
     suggested_substitute: Optional[str] = None,
+    max_tokens: int = 400,
 ) -> Dict:
     missing_guidance = ''
     if missing_ingredient:
@@ -156,7 +157,7 @@ def evaluate_llm_judge(
         f'Reference target adaptation: {target_adaptation or "not provided"}\\n'
         f'Candidate output:\\n{output_text}'
     )
-    raw = model.generate(prompt, max_tokens=400, temperature=0.0)
+    raw = model.generate(prompt, max_tokens=max_tokens, temperature=0.0)
     try:
         parsed = _extract_json(raw)
         score = float(parsed.get('score', 0.0))
